@@ -47,13 +47,26 @@ def predict_technology_occupation_weights(
     return pd.Series(weights, index=np.asarray(occupations)[order], name="technology_weight").sort_values(ascending=False)
 
 
+def _writable_float_array(values: pd.Series | np.ndarray) -> np.ndarray:
+    """Return an owned, writable float array.
+
+    Pandas 3 may expose read-only NumPy views from ``Series.to_numpy``.  The
+    measurement code normalizes vectors, so taking an explicit owned copy keeps
+    behavior stable across supported pandas/Python versions.
+    """
+    return np.array(values, dtype=float, copy=True)
+
+
 def weighted_workstyle_vector(weights: pd.Series, workstyle_matrix: pd.DataFrame) -> np.ndarray:
     common = workstyle_matrix.index.astype(str).intersection(weights.index.astype(str))
     if len(common) == 0:
         raise ValueError("No common occupations between weights and O*NET workstyle matrix")
-    w = weights.reindex(common).fillna(0.0).to_numpy(float)
-    w /= w.sum()
-    return w @ workstyle_matrix.reindex(common).to_numpy(float)
+    w = _writable_float_array(weights.reindex(common).fillna(0.0))
+    total = w.sum()
+    if total <= 0:
+        raise ValueError("Occupation weights must have positive mass")
+    w = w / total
+    return w @ workstyle_matrix.reindex(common).to_numpy(dtype=float, copy=True)
 
 
 def workstyle_vector_distance(source_weights: pd.Series, target_weights: pd.Series, workstyle_matrix: pd.DataFrame) -> float:
@@ -79,13 +92,15 @@ def sinkhorn_organizational_distance(
     occupations = [o for o in sorted(set(source_weights.index.astype(str)) | set(target_weights.index.astype(str))) if o in available]
     if not occupations:
         raise ValueError("No occupations overlap the workstyle matrix")
-    a = source_weights.reindex(occupations).fillna(0.0).to_numpy(float)
-    b = target_weights.reindex(occupations).fillna(0.0).to_numpy(float)
-    if a.sum() <= 0 or b.sum() <= 0:
+    a = _writable_float_array(source_weights.reindex(occupations).fillna(0.0))
+    b = _writable_float_array(target_weights.reindex(occupations).fillna(0.0))
+    a_total = a.sum()
+    b_total = b.sum()
+    if a_total <= 0 or b_total <= 0:
         raise ValueError("Source and target weights must have positive mass")
-    a /= a.sum()
-    b /= b.sum()
-    styles = row_normalize(workstyle_matrix.reindex(occupations).to_numpy(float))
+    a = a / a_total
+    b = b / b_total
+    styles = row_normalize(workstyle_matrix.reindex(occupations).to_numpy(dtype=float, copy=True))
     cost = np.clip((1.0 - styles @ styles.T) / 2.0, 0.0, 1.0)
     kernel = np.maximum(np.exp(-cost / regularization), 1e-300)
     u = np.ones_like(a)
