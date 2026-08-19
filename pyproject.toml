@@ -4,10 +4,10 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "workstyle-technology-distance"
-version = "0.1.0"
-description = "Transformer-based organizational distance measures for technology adoption economics"
+version = "0.2.0"
+description = "Organizational distance measures for technology adoption using O*NET, BLS, patent text, and machine learning"
 requires-python = ">=3.10"
-dependencies = ["numpy>=1.24", "pandas>=2.0", "scikit-learn>=1.3"]
+dependencies = ["numpy>=1.24", "pandas>=2.0", "scikit-learn>=1.3", "openpyxl>=3.1"]
 
 [project.optional-dependencies]
 transformer = ["sentence-transformers>=3.0", "torch>=2.0"]
