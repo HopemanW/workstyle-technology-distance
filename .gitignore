@@ -8,4 +8,6 @@ output/
 models/
 *.csv
 *.parquet
+*.xlsx
+.env
 .DS_Store
