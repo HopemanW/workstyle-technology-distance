@@ -1,0 +1,11 @@
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+data/
+raw_data/
+output/
+models/
+*.csv
+*.parquet
+.DS_Store
