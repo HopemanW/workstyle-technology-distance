@@ -38,9 +38,9 @@ This project is about organizational economics, creative destruction, and techno
 
 - offline TF-IDF baseline for full reproducibility;
 - optional Sentence Transformer embeddings;
-- cosine and optimal-transport-style distance measures;
+- cosine Workstyle–Technology Distance implemented now, with optimal-transport and learned-distance extensions in the research roadmap;
 - synthetic technology-adoption DGP with known age × distance friction;
-- random-forest / causal-forest heterogeneity layer;
+- random-forest prediction/heterogeneity benchmark, with causal-forest extensions reserved for a valid identification design;
 - a public-data roadmap using O*NET tasks/workstyles, BLS industry-occupation employment, and patent or technology text.
 
 ## Quick start
