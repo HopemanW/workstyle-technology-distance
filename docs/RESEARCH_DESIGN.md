@@ -1,44 +1,88 @@
-# Research Design
+# Research Design: Workstyle–Technology Distance
 
-## Economic idea
+## 1. Economic mechanism
 
-A technology may be technically available to every firm but organizationally costly to implement inside an incumbent whose existing workforce, routines, and problem-solving styles are far from those required by the new technology.
+A new technology can create an implementation problem rather than a knowledge problem. Incumbents have accumulated occupations, routines, communication patterns, and decision rules. If a technology requires a very different mix of workstyles, the organization must reallocate labor and change how problems are solved. Those changes can be especially costly for older firms.
 
-The key object here is **Workstyle–Technology Distance (WTD)**, a semantic and occupational measure of that mismatch.
+The project separates **technology intensity** from **organizational distance**. A sector can receive many patents but still face low reorganization cost if the technologies complement the existing occupational/workstyle structure.
 
-## Measurement architecture
+## 2. Current organization
 
-### 1. Current organizational workstyle
+For industry `j` at baseline year `t`, let `s_jot` be the employment share of occupation `o`. Use the BLS National Employment Matrix or a compatible industry×occupation source.
 
-Use industry × occupation employment shares and O*NET workstyle/task descriptions to create an employment-weighted representation of the incumbent production organization.
+O*NET provides each occupation's workstyle vector `w_o`. The incumbent workstyle is
 
-### 2. Technology-implied workstyle
+`W_jt = sum_o s_jot w_o`.
 
-Map patent, product, AI, software, or other technology text into occupation/task space. A simple version uses text similarity; a richer version estimates whether each occupation is complemented or substituted by the technology.
+The repository's `normalize_employment_weights()` and O*NET loaders create these objects.
 
-### 3. Distance
+## 3. Technology-implied organization
 
-Compare current and technology-implied workstyle vectors. Candidate metrics:
+Construct one text corpus per occupation from O*NET task statements. Embed these occupation corpora and technology text (for example PatentsView publication titles/abstracts) in the same vector space.
 
-- cosine distance;
-- Wasserstein/optimal-transport distance across occupations;
-- Mahalanobis distance using historical covariance of workstyles;
-- learned distance from a Siamese/contrastive Transformer.
+Let `sim(k,o)` be semantic similarity between technology `k` and occupation `o`. Convert similarities to a probability distribution using a temperature-controlled softmax:
 
-## Empirical prediction
+`q_ko = softmax(sim(k,o) / tau)`.
 
-Estimate whether age-related underperformance is more negative when WTD is high, controlling separately for technology quantity/intensity. The quantity of technology and the organizational distance of technology are different economic objects.
+This is the technology-implied occupation distribution.
 
-## Public-data path
+A stronger future version would train the occupation mapping on known complement/substitute labels rather than relying only on unsupervised similarity.
 
-- O*NET: occupation tasks, workstyles, skills;
-- BLS Occupational Employment and Wage Statistics: industry × occupation employment;
-- Census BDS: firm-age-group employment growth at industry level;
-- public patent text / technology descriptions where licensing permits.
+## 4. Two WTD measures
 
-## ML extensions
+### Workstyle cosine WTD
 
-- Sentence Transformer embeddings of tasks and patent text;
-- contrastive learning using known occupation–technology complement/substitute pairs;
-- causal forest for age × WTD heterogeneity after a valid empirical design;
-- SHAP/feature attribution to identify which workstyle dimensions drive organizational conflict.
+`W_k = sum_o q_ko w_o`
+
+and
+
+`WTD_cos(j,k) = cosine_distance(W_j, W_k)`.
+
+### Organizational transport WTD
+
+Define the cost of reallocating organizational mass from occupation `o` to `o'` by the cosine distance between their O*NET workstyle vectors. Then compute an entropic optimal-transport approximation:
+
+`WTD_OT(j,k) = min_pi sum_{o,o'} pi_oo' c(w_o,w_o')`
+
+subject to the incumbent and technology-implied occupation marginals.
+
+This is economically attractive because it measures the minimum workstyle adjustment required to transform the incumbent organization into the technology-implied one.
+
+## 5. Outcomes
+
+A public first-pass outcome panel can use Census Business Dynamics Statistics. BDS provides firm-age categories and measures including employment, job creation/destruction, and net job creation rates. Interactions are limited by the public tabulations, so the final panel must respect the BDS crossing structure.
+
+The reduced-form target is conceptually
+
+`Outcome_jakt = FE + beta * Old_a × WTD_jkt + controls + error`,
+
+where `Old_a` identifies older firm-age bins and technology intensity is controlled separately.
+
+## 6. Identification discipline
+
+WTD is a measurement contribution; it does not automatically identify a causal effect. A causal design should define technology arrival/exposure before using ML for heterogeneity. Candidate designs include:
+
+- technology shocks concentrated in pre-existing patent classes;
+- exposure based on lagged industry occupational structure;
+- shift-share designs using national technology growth × predetermined local/industry exposure;
+- event studies around externally timed technology releases or regulatory changes.
+
+Avoid using post-outcome occupation shares to construct baseline WTD.
+
+## 7. Official public sources encoded in the repo
+
+- O*NET 30.3 Work Styles, Task Statements, and Work-Style/Activity linkages.
+- BLS 2024–2034 National Employment Matrix, industry–occupation tables.
+- PatentsView PatentSearch API publication title/abstract text; API key required.
+- Census BDS time-series API; API key required; current public API documentation covers 1978–2023.
+
+## 8. Model-validation agenda
+
+Compare alternative text representations while holding the economic target fixed:
+
+1. TF-IDF baseline.
+2. Generic Sentence Transformer.
+3. Finance/economics-domain encoder.
+4. Contrastively trained occupation–technology encoder.
+
+Validation should emphasize economic signal, not just text similarity: stability across releases, out-of-sample prediction of occupational shifts, and whether high-WTD technologies predict larger age gradients in adoption/growth.
